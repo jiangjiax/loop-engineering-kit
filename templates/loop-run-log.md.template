@@ -13,7 +13,7 @@ Each entry is a JSON object on contiguous lines, preceded by a blank line.
 ```json
 {
   "run_id": "[ISO timestamp, e.g., 2026-06-20T15:17:00Z]",
-  "skill": "[loop name, e.g., email-loop / li-content-loop / my-domain-loop]",
+  "skill": "[loop name, e.g., email-loop / article-loop / code-review-loop]",
   "selection": "[topic or task identifier]",
   "phases_completed": [
     "state_init",
