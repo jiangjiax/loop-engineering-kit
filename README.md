@@ -2,6 +2,8 @@
 
 > A scaffold for building **multi-stage Claude Code agent loops** with verifier isolation, taste voting, and zero-interruption execution.
 
+English README (this file) · [中文版](./README.zh.md)
+
 A skill scaffold for Claude Code. Drop it into `~/.claude/skills/` or your project's `.claude/skills/`, fill in your `[MAKER]`s and `[CHECKER]`, and you get a loop that:
 
 - **Drafts → verifies → iterates → archives** without asking the user mid-flight
@@ -71,7 +73,7 @@ loop-engineering-kit/
 ```bash
 # 1. Clone into your Claude Code skills directory
 cd ~/.claude/skills/
-git clone https://github.com/YOUR/loop-engineering-kit.git
+git clone https://github.com/jiangjiax/loop-engineering-kit.git
 
 # 2. Copy the three state files into your project root
 cd /path/to/your/project
