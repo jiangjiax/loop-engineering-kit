@@ -1,0 +1,89 @@
+# Loop State
+
+> This is the spine of `loop-foreman`. Phase 0 of every loop reads it, every phase writes to it.
+> Open this file at any time to see "where is the loop now / what am I waiting on."
+
+Last run: [never]
+Last updated: [never]
+
+---
+
+## 🔄 current_loop (the loop currently running)
+
+(none)
+
+<!-- Format example, fill in when a loop starts:
+current_loop:
+  selection: [topic name]
+  started_at: [ISO timestamp, e.g. 2026-06-20T14:27:33Z]
+  outline_path: [path to outline / spec file]
+  status: phase_1_in_progress
+  today_tokens_so_far: [N]k
+  budget_mode: full_dual / single_version_forced
+  same_topic_iteration: 1 / 6
+  cumulative_tokens_estimate: [N]k / 2M
+
+  locked_v1_artifact:
+    type: cover / outline / structure (whatever stage 1 produces)
+    content: [...]
+    picked_by: taste_majority_2_1
+
+  locked_v2_artifact:
+    type: hook / opening / intro (whatever stage 2 produces)
+    content: [...]
+    picked_by: phase_2_taste_unanimous_3_0
+
+  iterations:
+    - round: 1
+      critic_verdict: REJECT_LIGHT
+      fix_summary: shortened paragraph 7, removed apologetic close
+
+  override_iteration_cap: false
+  override_budget: false
+-->
+
+---
+
+## 🟢 High Priority (waiting on the user / loop is blocked)
+
+(none)
+
+<!-- Format:
+- [ESCALATE from loop-foreman @ 2026-06-20]
+  Issue: paragraph 7 hedge density borderline
+  Suggestion: user reads aloud and decides
+  Loop state: paused at Phase 5, awaiting user response
+-->
+
+---
+
+## 👀 Watch List (loop watching but not acting)
+
+(none)
+
+<!-- Format:
+- Outline for topic X has been pending loop for 1 week
+- v1 vs v2 cover selection rule needs sedimenting
+-->
+
+---
+
+## 🗑️ Recent Noise (recent observations loop ignored)
+
+(none)
+
+---
+
+## 📌 Loop global state
+
+- **Active patterns**: loop-foreman (L1 report mode + human confirm each phase)
+- **Pause flag**: false
+- **Override flags**: none
+
+To emergency-pause all loops, append `LOOP_PAUSE: true` to this section. Next loop's Phase 0 will detect and halt.
+
+---
+
+Last loop run id: never
+Run log: `loop-run-log.md`
+Budget: `loop-budget.md`

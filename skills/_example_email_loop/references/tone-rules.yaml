@@ -1,0 +1,188 @@
+# tone-rules.yaml — Email tone critic rules
+#
+# This is the gate file the email-loop critic subagent reads.
+# Each rule has: tier, description, trigger pattern, auto-fix action, and a worked example.
+#
+# Format: YAML, but the format doesn't matter — your critic could read this as Markdown or JSON.
+# What matters is that the `example` field gives the critic enough precedent to auto-fix
+# without escalating to the user (Iron Law 1 in practice).
+
+rules:
+  - rule_id: avoid_corporate_padding
+    tier: general
+    description: Cut filler phrases that delay the actual ask
+    trigger:
+      patterns:
+        - "I hope this email finds you well"
+        - "Just wanted to reach out"
+        - "I wanted to touch base"
+        - "I just wanted to follow up"
+    auto_fix:
+      action: remove_phrase
+    example:
+      bad: |
+        Hi team,
+        I hope this email finds you well. Just wanted to follow up on the timeline for the Q3 review.
+      good: |
+        Hi team,
+        Following up on the Q3 review timeline.
+
+  - rule_id: ask_must_be_in_first_paragraph
+    tier: serious
+    description: |
+      The ask is the most important part of an email. Burying it past the first paragraph
+      means a busy reader skims past it and doesn't act.
+    trigger:
+      check: ask_not_in_first_paragraph
+    auto_fix:
+      action: restructure_paragraph
+      lead_with_ask: true
+    example:
+      bad: |
+        Hi Alex,
+        I've been thinking about how we ran the Q3 cycle. There were some bottlenecks
+        in the review process that I think we should address. Specifically, the approval
+        chain felt unclear. I'd love to get on a call about this — could you make 30 min
+        next Tuesday afternoon?
+      good: |
+        Hi Alex,
+        Could you make 30 min next Tuesday afternoon to talk through Q3 review bottlenecks?
+        Specifically I want to clarify the approval chain — felt unclear last cycle.
+
+  - rule_id: no_apologetic_close
+    tier: general
+    description: |
+      "Sorry for the trouble" / "Apologies for bothering you" / "I know you're busy"
+      all lower the perceived stakes of your message. If your ask is legitimate, don't apologize for it.
+    trigger:
+      patterns:
+        - "Sorry for the trouble"
+        - "Apologies for"
+        - "I know you're busy"
+        - "Sorry to bother"
+    auto_fix:
+      action: remove_line
+    example:
+      bad: |
+        ...could you approve by Friday? Sorry for the trouble!
+      good: |
+        ...could you approve by Friday?
+
+  - rule_id: no_fake_urgency
+    tier: fatal
+    description: |
+      Fake urgency ("urgent", "ASAP", "important") in subject lines or first sentences
+      to manipulate response time. This actively damages relationships when the recipient
+      figures out the urgency wasn't real.
+    trigger:
+      patterns_in_subject_or_first_sentence:
+        - "URGENT"
+        - "ASAP"
+        - "IMPORTANT"
+        - "Time-sensitive"
+    exception:
+      - "If the email is genuinely time-sensitive AND the deadline is < 24h"
+    auto_fix:
+      action: replace_with_specific_deadline
+    example:
+      bad: |
+        Subject: URGENT: review needed
+
+        Hey, need your review ASAP.
+      good: |
+        Subject: Review needed by Thursday 5pm
+
+        Need your sign-off on the doc by Thursday 5pm so I can ship Friday morning.
+
+  - rule_id: no_aggressive_tone
+    tier: fatal
+    description: |
+      Aggressive phrasing toward the recipient. Different from being direct.
+      Direct = "can you do X by Y?". Aggressive = "you need to do X by Y or else".
+    trigger:
+      patterns:
+        - "you need to"
+        - "you have to"
+        - "I demand"
+        - "I expect"
+        - "I'm not asking"
+    auto_fix:
+      action: rewrite_as_request
+    example:
+      bad: |
+        You need to send me the spec by Monday or we can't ship.
+      good: |
+        Sending the spec by Monday would let us ship on time — does that work?
+
+  - rule_id: vague_close
+    tier: general
+    description: |
+      "Let me know your thoughts" / "Looking forward to hearing from you" leave the ball
+      in nowhere. Give the recipient a specific next action.
+    trigger:
+      patterns:
+        - "Let me know your thoughts"
+        - "Looking forward to hearing from you"
+        - "Happy to discuss"
+    auto_fix:
+      action: replace_with_specific_next_action
+    example:
+      bad: |
+        Let me know your thoughts!
+      good: |
+        Reply yes/no by Friday — happy to jump on a call if it's a no.
+
+  - rule_id: weak_subject_line
+    tier: serious
+    description: |
+      Subject lines like "Quick question" / "Following up" / "Hello" force the reader
+      to open the email to know what it's about. Always describe the content.
+    trigger:
+      subject_patterns:
+        - "Quick question"
+        - "Following up"
+        - "Hello"
+        - "Hi"
+        - "FYI"
+    auto_fix:
+      action: rewrite_subject_with_content_summary
+    example:
+      bad: |
+        Subject: Quick question
+      good: |
+        Subject: Q4 hiring budget — clarification on backfill rules
+
+  - rule_id: hedge_density_cap
+    tier: general
+    description: |
+      Excessive hedging ("maybe", "perhaps", "I think", "kind of") undercuts the message.
+      Cap hedge phrases at 1 per 100 words.
+    trigger:
+      patterns:
+        - "maybe"
+        - "perhaps"
+        - "I think"
+        - "kind of"
+        - "sort of"
+        - "I guess"
+      density_threshold: 1_per_100_words
+    auto_fix:
+      action: remove_excess_hedges
+    example:
+      bad: |
+        I think maybe we should perhaps consider sort of restructuring the team. I guess
+        it could kind of help with the bottleneck issue.
+      good: |
+        We should restructure the team. It'll help with the bottleneck.
+
+# How the foreman uses this file (recap of Iron Law 2):
+#
+# 1. Phase 4 critic subagent Reads this file in its hardcoded read list
+# 2. Critic scans the draft for each rule's trigger pattern
+# 3. For each hit, critic reports the rule_id + severity tier
+# 4. Phase 5 foreman:
+#    - For tier=general/serious: applies the rule's auto_fix.action
+#    - For tier=fatal: requires rewrite, may consult example.good for inspiration
+#    - For tier=escalate (not used in this file): writes to Phase 8 report
+# 5. The `example.bad` / `example.good` pair is what saves the foreman from over-escalating —
+#    it's a concrete precedent the critic and foreman can both pattern-match against.

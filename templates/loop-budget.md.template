@@ -1,0 +1,102 @@
+# Loop Budget
+
+> The loop's wallet. Defines per-run token cap, per-topic iteration cap, and total cumulative cap.
+> Over budget = loop halts and asks the user — does NOT silently continue burning tokens.
+
+---
+
+## Global rules
+
+**No daily run-count limit.** Run as many loops per day as you want.
+
+Caps live on the **per-topic** dimension, not per-day. A single topic's v1 / v2 / v3 / etc. all count as one loop chain. Caps apply to the chain.
+
+> Definition of "iteration" (set by user): one iteration = one full critic-routing cycle where the foreman tries to converge the draft.
+
+---
+
+## Per-topic iteration caps
+
+| Dimension | Cap | Behavior |
+|---|---|---|
+| **Same-topic iteration count** | **6** | After 6 unconverged iterations → halt, ask user: "this topic has iterated 6 times, should we roll back to outline?" |
+| **Same-topic cumulative tokens** | **2M** | Cumulative burn hits 2M → same halt + ask |
+| **Whichever cap hits first** | — | Either trigger halts the chain |
+
+**Why 6 and not unlimited**: 6 rounds without convergence usually means the upstream outline has structural issues. Continuing to iterate is just rearranging deck chairs. This cap isn't a limit on you — it's a signal that the cost is at the wrong layer.
+
+**Manual override**: say "continue past the cap" / "override and run N more" in the conversation. The foreman will continue and mark `override_iteration_cap: true` in STATE.md.
+
+---
+
+## Per-loop budget
+
+| Dimension | Cap | Notes |
+|---|---|---|
+| **Per-loop token cap** | **350k** | Based on measured production loops + 30% buffer for critic round 3 or genuine ESCALATE |
+| **Per-loop subagent cap** | **6** | 2 cross-review + 1 critic round 1 + 1 critic round 2 + 1 reserve + 1 emergency spawn slot |
+
+### Expected token distribution across 6 same-topic iterations (reference, not enforced)
+
+```
+Iterations 1-2: full dual-version + cross-review + critic 2 rounds ≈ 250-300k each
+Iterations 3-4: incremental rerun (inherit v1+v2, only refine body + 1 critic round) ≈ 150-200k each
+Iterations 5-6: micro-edit (1-2 paragraphs + 1 critic round) ≈ 80-120k each
+
+6-iteration total estimate ≈ 1100k → 80% buffer = 2M cumulative cap
+```
+
+If iterations 1-2 produce a winner, later token budget is unused — that's fine, save it for the next topic.
+
+---
+
+## Per-phase estimates (internal)
+
+| Phase | Token estimate | Notes |
+|---|---|---|
+| Phase 0 init | 5-10k | Read STATE + budget + outline |
+| Phase 1 maker_1 | 0-50k | Locked → 0; new → 3 candidate generation |
+| Phase 2 maker_2 | 40-80k | V1+V2 serial dual (foreman Reads full references) |
+| Phase 3 maker_3 serial dual | 80-120k | Conservative + sharp |
+| Phase 4 critic round 1 | 30-50k | Fresh subagent + Reads all gate files |
+| Cross-review (parallel) | 30-50k | Conservative-reviews-sharp / sharp-reviews-conservative, runs during Phase 4 |
+| Phase 5 auto-fix + round 2 | 20-40k | A/B auto-fix + critic round 2 |
+| Phase 6/7/8 archive + report | 10-15k | Write STATE + log + sediment + report |
+| **Per-loop cap** | **350k** | Over = halt + ask |
+
+---
+
+## Over-budget behavior
+
+### Per-loop over 350k
+
+1. **Current loop pauses**, STATE.md current_loop block appends `over_budget: true`
+2. **Append to loop-run-log.md**: `outcome: over_budget`
+3. **Ask user**: "this loop has burned [N]k tokens past the 350k cap. Continue? Reply yes to confirm."
+
+### Per-topic cumulative 2M or 6 iterations (whichever first)
+
+1. **Loop halts**, doesn't enter Phase 1
+2. **Ask user**: "this topic has iterated [N] times burning [X]M tokens. Roll back to outline? Or continue? Reply 'yes override' to continue."
+3. User says yes → mark `override_iteration_cap: true` in STATE.md, continue
+
+---
+
+## Kill switch (emergency halt all loops)
+
+Append to STATE.md's "Loop global state" section:
+```
+LOOP_PAUSE: true
+```
+
+Next loop's Phase 0 will read this and halt immediately, consuming zero tokens.
+
+---
+
+## Budget adjustment log
+
+| Date | Change | Reason |
+|---|---|---|
+| [date] | Initial: 350k per loop / 6 iterations / 2M cumulative / 6 subagents | Calibrated from production loop measurements + 30% safety buffer |
+
+> Tune these numbers to your domain. Email-loop might need only 100k per loop. Code-review loop might need 500k. Measure 3-5 real loops, then set the cap at measured-max + 30%.

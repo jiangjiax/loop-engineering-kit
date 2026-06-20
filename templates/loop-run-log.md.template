@@ -1,0 +1,103 @@
+# Loop run log
+
+> Append-only log of every loop the foreman has executed.
+> Phase 0 of each new loop greps this to reconcile token budgets and detect repeated patterns.
+> Phase 6 of each completed loop appends one JSON entry.
+
+---
+
+## Format
+
+Each entry is a JSON object on contiguous lines, preceded by a blank line.
+
+```json
+{
+  "run_id": "[ISO timestamp, e.g., 2026-06-20T15:17:00Z]",
+  "skill": "[loop name, e.g., email-loop / li-content-loop / my-domain-loop]",
+  "selection": "[topic or task identifier]",
+  "phases_completed": [
+    "state_init",
+    "phase_1",
+    "taste_phase_1_5",
+    "phase_2_v1+v2",
+    "phase_3_conservative+sharp",
+    "critic_roundN",
+    "archive"
+  ],
+  "iterations": [round count],
+  "final_verdict": "[APPROVE / APPROVE_WITH_NOTES / HUMAN_OVERRIDE / OVER_BUDGET]",
+  "draft_word_count": [N],
+  "duration_minutes": [estimate],
+  "tokens_estimate_this_run": "~[N]k",
+  "escalations_to_human": [count],
+  "auto_fixes_count": [total auto-fix count],
+  "loop_compliance": {
+    "iron_law_3_no_questions_to_user": true,
+    "iron_law_5_skill_tool_explicit_invocation": true,
+    "iron_law_5_1_continue_within_same_response": true,
+    "taste_subagent_runs": [N],
+    "verifier_isolation_correct": true
+  }
+}
+```
+
+---
+
+## Why JSON and not free text
+
+The log is consumed by:
+
+1. **Phase 0** of each new loop — greps `tokens_estimate_this_run` to reconcile today's budget burn
+2. **Periodic audit** — you'll want to look back at "what failed last week / what patterns repeat"
+3. **Possible future analytics** — if you build any kind of "loop performance dashboard" later, structured data > free text
+
+Append-only means: never edit an old entry. Wrong? Fine — write a new entry that corrects it.
+
+---
+
+## Bootstrap
+
+When you first create this file from the template, leave it empty. The first loop's Phase 6 will populate it.
+
+```
+(no runs yet)
+```
+
+After the first successful loop, it'll look like:
+
+```
+(no runs yet)
+
+{
+  "run_id": "2026-06-20T15:17:00Z",
+  "skill": "email-loop",
+  "selection": "email-to-alex-about-q4-budget",
+  "phases_completed": ["state_init", "draft_3", "taste_phase_1_5", "tone_variants", "critic_round1", "archive"],
+  "iterations": 1,
+  "final_verdict": "APPROVE_WITH_NOTES",
+  "draft_word_count": 142,
+  "duration_minutes": 4,
+  "tokens_estimate_this_run": "~85k",
+  "escalations_to_human": 0,
+  "auto_fixes_count": 2,
+  "loop_compliance": {
+    "iron_law_3_no_questions_to_user": true,
+    "iron_law_5_skill_tool_explicit_invocation": true,
+    "iron_law_5_1_continue_within_same_response": true,
+    "taste_subagent_runs": 3,
+    "verifier_isolation_correct": true
+  }
+}
+```
+
+---
+
+## Phase 6's write rules (recap from `bash-no-go-zone.md`)
+
+The foreman appends entries here using **Read + Edit**, NOT `cat >> file << 'EOF'`.
+
+Reason: heredoc redirects trigger Claude Code permission prompts, which break the zero-interruption loop. Read this file → Edit at end → done.
+
+---
+
+(no runs yet)

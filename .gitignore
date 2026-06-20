@@ -1,0 +1,15 @@
+# macOS
+.DS_Store
+
+# Editor
+.vscode/
+.idea/
+
+# Test artifacts (created when testing the example loop)
+test/
+test-output/
+
+# State files when used in this repo for local testing (not when used as a kit)
+/STATE.md
+/loop-budget.md
+/loop-run-log.md

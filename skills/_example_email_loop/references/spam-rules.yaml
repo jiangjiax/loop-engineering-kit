@@ -1,0 +1,140 @@
+# spam-rules.yaml — Email spam pattern critic rules
+#
+# Patterns that make a legitimate email look like spam or marketing automation.
+# The critic flags these so the email lands in the inbox, not the promotions tab.
+
+rules:
+  - rule_id: avoid_marketing_speak
+    tier: serious
+    description: |
+      Phrases that pattern-match to marketing automation systems.
+      Even if your email is genuine, these phrases will get it filtered into Promotions.
+    trigger:
+      patterns:
+        - "Don't miss out"
+        - "Limited time"
+        - "Act now"
+        - "Click here"
+        - "Best regards"  # generic sign-off, looks templated
+        - "Dear valued"
+    auto_fix:
+      action: replace_with_specific_phrase
+    example:
+      bad: |
+        Don't miss out on the Q4 planning meeting! Click here to RSVP.
+      good: |
+        Q4 planning is next Tuesday at 2pm. Reply if you can join — I'll send the doc to attendees.
+
+  - rule_id: avoid_excessive_punctuation
+    tier: general
+    description: |
+      Multiple exclamation marks (!!!) or question marks (???) read as either
+      spam, sarcasm, or anxiety. None help.
+    trigger:
+      patterns:
+        - "!!"
+        - "??"
+        - "..."  # ellipsis in subject lines or first sentence
+    auto_fix:
+      action: collapse_to_single_punctuation
+    example:
+      bad: |
+        Can you review this!!! It's really important!!!
+      good: |
+        Can you review this? It's blocking the Friday ship.
+
+  - rule_id: avoid_all_caps
+    tier: serious
+    description: |
+      All-caps words (more than 3 letters) in subject or body reads as shouting.
+      Exception: acronyms (URL, API, SQL) are fine.
+    trigger:
+      check: words_in_all_caps_longer_than_3_letters
+    exception:
+      - common_acronyms: [URL, API, SQL, CEO, CTO, CFO, CMO, COO, NDA, MVP, ETA, FYI, KPI, ROI, SLA]
+    auto_fix:
+      action: convert_to_normal_case_with_optional_bold
+    example:
+      bad: |
+        Subject: URGENT REVIEW NEEDED
+
+        This is REALLY important and I need it BY TOMORROW.
+      good: |
+        Subject: Review needed by tomorrow
+
+        This is blocking the Friday ship — could you review by tomorrow EOD?
+
+  - rule_id: avoid_money_words_in_subject
+    tier: general
+    description: |
+      Subject lines with $$$ / money / cash / free trigger spam filters even in legitimate
+      business emails. If the email is about pricing, find a different word.
+    trigger:
+      subject_patterns:
+        - "$"
+        - "money"
+        - "cash"
+        - "free"
+        - "save"
+        - "discount"
+    exception:
+      - "Internal email between coworkers about budget"
+    auto_fix:
+      action: replace_with_neutral_term
+      suggestions: [budget, pricing, cost, investment]
+    example:
+      bad: |
+        Subject: SAVE 20% on Q4 budget!
+      good: |
+        Subject: Q4 budget — proposed 20% reduction
+
+  - rule_id: avoid_link_density
+    tier: serious
+    description: |
+      More than 3 links in a single short email reads as a newsletter or phishing.
+      For business emails, link to 1 thing (the doc / the calendar / the form).
+    trigger:
+      check: link_count_greater_than_3
+    auto_fix:
+      action: consolidate_links_or_move_to_attachment
+    example:
+      bad: |
+        See the doc here. Also check this. And here's the dashboard. And here's the spec.
+      good: |
+        Doc: [link]
+        (Dashboard, spec, and last meeting notes are linked from the doc.)
+
+  - rule_id: no_signature_padding
+    tier: general
+    description: |
+      Multi-line signatures with phone, email, address, social, disclaimer, and a quote
+      add noise without value. A name + role (one line each) is enough for most emails.
+    trigger:
+      check: signature_longer_than_3_lines
+    exception:
+      - "Legally required disclaimers (e.g., regulatory industries)"
+    auto_fix:
+      action: trim_signature_to_name_and_role
+    example:
+      bad: |
+        Alex Smith
+        Director of Engineering
+        Acme Corp
+        +1 555-0100 | alex@acme.com
+        San Francisco, CA
+        LinkedIn | Twitter | GitHub
+        "The only way out is through" — Robert Frost
+
+        CONFIDENTIALITY NOTICE: This email...
+      good: |
+        Alex
+        Director of Engineering, Acme
+
+# How the foreman handles spam-rules:
+#
+# Same routing logic as tone-rules. Critic flags violations + tier, foreman auto-fixes
+# per the example field, escalates only when no example matches.
+#
+# Spam-rules tend to have more general/serious findings than fatal — the email is
+# usually fixable, not rejectable. Adjust tiers per your domain (e.g., for cold outreach
+# templates, "marketing speak" might be fatal).
