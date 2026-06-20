@@ -1,0 +1,175 @@
+# technical-rules.yaml — Code review technical accuracy rules
+#
+# These rules detect technical errors in the REVIEW itself:
+# - false positives (review claims a bug that doesn't exist)
+# - missed bugs (review skips something visible in the diff)
+# - mis-calibrated severity
+#
+# For review tone rules (condescension, vagueness, etc.), see review-rules.yaml.
+
+rules:
+  - rule_id: false_positive_security_claim
+    tier: fatal
+    description: |
+      Review claims a security vulnerability that the actual code doesn't have.
+      False positives in security findings damage trust irreversibly — the next
+      real finding gets dismissed too. Verify against the diff before flagging.
+    trigger:
+      check: security_claim_contradicted_by_diff_evidence
+    auto_fix:
+      action: none  # foreman cannot auto-fix; escalate for adjudication
+    example:
+      bad: |
+        Line 45 introduces SQL injection: `db.query('SELECT * FROM users WHERE id = ?', [userId])`
+        (The quoted code uses parameterized query — this is the OPPOSITE of SQL injection.)
+      good: |
+        Line 45 uses parameterized query — no SQL injection risk here. (If reviewing
+        for completeness: verify all DB calls in this file follow the same pattern.)
+
+  - rule_id: false_positive_correctness_claim
+    tier: fatal
+    description: |
+      Review claims behavior X happens when the code does Y. Often caused by reviewer
+      reading code out of context or skimming. Cross-reference the diff before flagging.
+    trigger:
+      check: correctness_claim_contradicted_by_diff_evidence
+    auto_fix:
+      action: none  # foreman cannot auto-fix; escalate
+    example:
+      bad: |
+        This function returns `undefined` when `users` is empty.
+        (Actual code: returns `[]` when users is empty.)
+      good: |
+        For empty `users` array, returns `[]` — but the caller on line 89 expects a non-empty
+        array. Either guard at call site or document the empty-array contract.
+
+  - rule_id: missed_visible_bug
+    tier: serious
+    description: |
+      Review skips a bug clearly visible in the diff. Often happens when reviewer
+      focuses on one perspective (e.g., security) and misses correctness issues.
+    trigger:
+      check: diff_contains_obvious_bug_not_mentioned_in_review
+    auto_fix:
+      action: add_finding_for_missed_bug
+    example:
+      bad: |
+        (Review covers 5 style issues but doesn't mention that the new `parseDate()` function
+        crashes on null input, which the diff shows being called with potentially-null args.)
+      good: |
+        Line 67: `parseDate(user.dob)` will throw if `user.dob` is null. The User type marks
+        `dob?: string` as optional — either guard with `?.` or add explicit null check.
+
+  - rule_id: severity_inflation
+    tier: serious
+    description: |
+      Style preferences marked as BLOCKING / fatal. Burns out PR authors and trains them
+      to ignore severity labels. Reserve BLOCKING for: security, correctness, broken paths.
+    trigger:
+      check: blocking_or_fatal_label_on_non_critical_finding
+    auto_fix:
+      action: downgrade_severity
+    example:
+      bad: |
+        BLOCKING: Use `const` instead of `let` here.
+      good: |
+        Suggestion: `const` would work here since you don't reassign — not blocking.
+
+  - rule_id: severity_deflation
+    tier: serious
+    description: |
+      Security or correctness bugs marked as "suggestion" or "nit". Trains author to
+      under-prioritize real bugs.
+    trigger:
+      check: low_severity_label_on_security_or_correctness_finding
+    auto_fix:
+      action: upgrade_severity
+    example:
+      bad: |
+        Nit: The new endpoint doesn't check auth.
+      good: |
+        BLOCKING: Line 23 — new endpoint missing auth check. Compare with similar endpoint
+        at line 67 which calls `requireAuth(req)`.
+
+  - rule_id: unsupported_claim_about_performance
+    tier: serious
+    description: |
+      "This will be slow" / "this won't scale" without benchmark or complexity analysis.
+      Performance claims need either Big-O reasoning or actual numbers.
+    trigger:
+      patterns_without_complexity_or_benchmark:
+        - "this will be slow"
+        - "this won't scale"
+        - "performance issue"
+        - "too slow"
+    auto_fix:
+      action: add_complexity_analysis_or_benchmark_or_remove
+    example:
+      bad: |
+        This loop will be slow.
+      good: |
+        This loop is O(n²) (nested forEach). For n > 1000 users it'll exceed our 100ms
+        budget — verified via [benchmark / profiler trace / complexity analysis].
+        Consider using a Map for O(n) lookup.
+
+  - rule_id: unsupported_claim_about_dependencies
+    tier: general
+    description: |
+      "Don't add this library" / "we already have one that does this" without naming
+      the existing library or showing the existing usage.
+    trigger:
+      patterns_without_specific_existing_alternative:
+        - "we already have"
+        - "don't add this dep"
+        - "this is redundant"
+    auto_fix:
+      action: name_the_existing_alternative_or_remove
+    example:
+      bad: |
+        Don't add lodash — we have utilities for this already.
+      good: |
+        We already have `src/utils/array.ts` with `groupBy` (line 23) and `partition` (line 47).
+        Adding lodash for these two uses doubles bundle size by ~70KB.
+
+  - rule_id: missing_test_coverage_flag
+    tier: serious
+    description: |
+      Diff adds new business logic without test coverage. Review should flag this even if
+      tests aren't strictly required by team convention — the author may have just forgotten.
+    trigger:
+      check: new_function_or_branch_without_test_diff
+    auto_fix:
+      action: add_test_coverage_finding
+    example:
+      bad: |
+        (Review covers correctness and style but doesn't mention 3 new code paths in
+        `processPayment` have no tests added.)
+      good: |
+        Test coverage: 3 new branches in `processPayment` (lines 45-58, 67-72, 89-95) but
+        no tests added in `processPayment.test.ts`. Worth adding cases for at least the
+        error branches before merge?
+
+  - rule_id: contradictory_findings
+    tier: fatal
+    description: |
+      Two findings in the same review give conflicting advice. Confuses the author and
+      shows the review wasn't reread before posting.
+    trigger:
+      check: two_findings_recommend_opposite_changes
+    auto_fix:
+      action: reconcile_or_drop_one
+    example:
+      bad: |
+        Line 12: "Use Map for O(1) lookup."
+        Line 14: "Use Array.find — Map is overkill here."
+      good: |
+        Line 12: For the lookup on line 12-14, Map gives O(1) but Array.find with early
+        return is fine for n < 50. Pick based on expected payload size.
+
+# How this differs from review-rules.yaml:
+#
+# - review-rules.yaml: how the review SOUNDS (tone, specificity, calibration)
+# - technical-rules.yaml: whether the review is CORRECT (false positives, missed bugs)
+#
+# A review can pass review-rules.yaml (polite, specific, well-calibrated) but fail
+# technical-rules.yaml (the polite specific finding is wrong). Both gates run in Phase 4.

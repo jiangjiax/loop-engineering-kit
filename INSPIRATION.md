@@ -28,7 +28,7 @@ This is iron law of verifier isolation: every checker in this kit spawns as a fr
 
 ### Daniel Kahneman — System 1 / System 2
 
-The framing of "the maker writes with System 1, the checker reads with System 2" is from Kahneman's *Thinking, Fast and Slow*. It's the psychological justification for why verifier isolation isn't paranoid — it's recognizing that the maker mode and checker mode are different cognitive tasks that need different "agents" running them.
+The framing of "the maker produces with System 1, the checker reads with System 2" is from Kahneman's *Thinking, Fast and Slow*. It's the psychological justification for why verifier isolation isn't paranoid — it's recognizing that the maker mode and checker mode are different cognitive tasks that need different "agents" running them.
 
 This is also why the kit uses 3 fresh subagents for "taste voting" decisions: a single System 2 reader can be biased; three independent readers approximate a jury.
 

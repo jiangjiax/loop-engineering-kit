@@ -6,12 +6,21 @@ English README (this file) · [中文版](./README.zh.md)
 
 A skill scaffold for Claude Code. Drop it into `~/.claude/skills/` or your project's `.claude/skills/`, fill in your `[MAKER]`s and `[CHECKER]`, and you get a loop that:
 
-- **Drafts → verifies → iterates → archives** without asking the user mid-flight
-- **Isolates verifiers in fresh subagents** so the maker can't grade its own homework
-- **Routes critic findings through gate files** (your own rule book) before escalating to the human
+- **Produces → verifies → iterates → archives** without asking the user mid-flight
+- **Isolates verifiers in fresh subagents** so the producer can't grade its own output
+- **Routes checker findings through gate files** (your own rule book) before escalating to the human
 - **Persists state across phases** in three append-only files (`STATE.md` / `loop-budget.md` / `loop-run-log.md`)
 
 This is not a framework. It's a **set of patterns and templates** you copy and adapt to your domain.
+
+The pattern is **domain-agnostic**. The same 9-phase structure applies to:
+
+- **Text production** — writing, editing, copywriting, translation, summarization
+- **Judgment work** — code review, design critique, research evaluation, decision support
+- **Information synthesis** — research summaries, market analysis, multi-source reports
+- **Structured artifacts** — plans, proposals, schemas, configurations
+
+See [`examples/`](./examples/) for runnable loops across different domains.
 
 ---
 
@@ -19,7 +28,7 @@ This is not a framework. It's a **set of patterns and templates** you copy and a
 
 Most multi-step LLM workflows die at one of three places:
 
-1. **The maker grades its own homework** → quality silently drops, you don't notice until the user complains
+1. **The producer grades its own output** → quality silently drops, you don't notice until the user complains
 2. **The orchestrator asks "yes or no?" 10 times** → the human becomes the bottleneck, the loop loses its value
 3. **State lives in conversation context** → once context resets or the loop crashes, you can't resume
 
@@ -42,20 +51,19 @@ loop-engineering-kit/
 ├── INSPIRATION.md             ← lineage & credits
 │
 ├── skills/
-│   ├── loop-foreman/          ← the scaffold (business-agnostic)
-│   │   ├── SKILL.md
-│   │   └── references/
-│   │       ├── phase-templates.md      ← 9 phases with [MAKER] / [CHECKER] placeholders
-│   │       ├── iron-laws.md            ← full text of the 5 iron laws
-│   │       ├── taste-subagent.md       ← verifier isolation pattern
-│   │       ├── bash-no-go-zone.md      ← which Bash commands trigger permission prompts
-│   │       └── critic-design-pattern.md ← how to design your own critic-rules.yaml
-│   │
-│   └── _example_email_loop/   ← a minimal worked example: drafting + tone check + spam check
+│   └── loop-foreman/          ← the scaffold (domain-agnostic)
 │       ├── SKILL.md
 │       └── references/
-│           ├── tone-rules.yaml
-│           └── spam-rules.yaml
+│           ├── phase-templates.md      ← 9 phases with [MAKER] / [CHECKER] placeholders
+│           ├── iron-laws.md            ← full text of the 5 iron laws
+│           ├── taste-subagent.md       ← verifier isolation pattern
+│           ├── bash-no-go-zone.md      ← which Bash commands trigger permission prompts
+│           └── critic-design-pattern.md ← how to design your own critic-rules.yaml
+│
+├── examples/                  ← runnable example loops across domains
+│   ├── README.md              ← pick the example closest to your domain
+│   ├── email-loop/            ← simplest: text production, 9 phases minus 3 + 3.5
+│   └── code-review-loop/      ← production-grade: parallel perspectives + cross-review + polish
 │
 ├── templates/                 ← cp these into your project root
 │   ├── STATE.md.template
@@ -82,8 +90,8 @@ mv STATE.md.template STATE.md
 mv loop-budget.md.template loop-budget.md
 mv loop-run-log.md.template loop-run-log.md
 
-# 3. Read the example
-cat ~/.claude/skills/loop-engineering-kit/skills/_example_email_loop/SKILL.md
+# 3. Pick an example closest to your domain
+cat ~/.claude/skills/loop-engineering-kit/examples/README.md
 
 # 4. Build your own
 # - Copy skills/loop-foreman/ → skills/my-loop-foreman/
@@ -105,10 +113,10 @@ The foreman takes over, runs each phase, writes state, and hands you a final rep
 
 This is a **scaffold**, not a product. You'll need to write:
 
-1. **Your makers** — the skills that actually produce content (drafting, writing, generating). Anything that runs in the main thread.
+1. **Your producers** — the skills that actually generate the output (drafting, writing, designing, analyzing, judging). Anything that runs in the main thread.
 2. **Your checker** — the skill that grades the output. Runs in a fresh subagent.
 3. **Your critic rules** — a YAML file that tells the checker what counts as a fatal/serious/general violation. Without this, your loop has no gate.
-4. **Your domain context** — any reference files the maker and checker need to read.
+4. **Your domain context** — any reference files the producer and checker need to read.
 
 The kit handles the **wiring** (when to spawn subagents, how to vote, where to write state, when to escalate). You handle the **content** (what your loop actually does).
 
@@ -138,4 +146,4 @@ MIT. Build whatever you want. If you build something cool, open an issue — I'd
 
 ## Credits
 
-The foreman pattern came out of a year of building production agent loops for content creation. Without the work of the people listed in [INSPIRATION.md](./INSPIRATION.md), there'd be nothing to package here.
+The foreman pattern came out of a year of building production agent loops. The patterns are domain-agnostic — they apply equally to text production, judgment work, information synthesis, and any other multi-stage workflow that needs verification. Without the work of the people listed in [INSPIRATION.md](./INSPIRATION.md), there'd be nothing to package here.

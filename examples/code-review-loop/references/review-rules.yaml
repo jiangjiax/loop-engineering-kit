@@ -1,0 +1,173 @@
+# review-rules.yaml — Code review tone & calibration rules
+#
+# These rules govern HOW the review is written (tone, specificity, calibration).
+# For technical accuracy rules (false positive / missed bug detection),
+# see technical-rules.yaml.
+
+rules:
+  - rule_id: condescension_marker
+    tier: general
+    description: |
+      Words that imply the author "should have known better" damage trust without adding value.
+      Even when technically correct, condescension makes the author defensive and slows fixes.
+    trigger:
+      patterns:
+        - "obviously"
+        - "clearly"
+        - "simply"
+        - "just"  # context-dependent — only flag when used as "just do X"
+        - "any developer would"
+        - "this is basic"
+        - "you should know"
+    auto_fix:
+      action: remove_word_or_rephrase
+    example:
+      bad: |
+        Obviously this should be a Map, not an Array — any developer would know that.
+      good: |
+        Using a Map here would be O(1) lookup vs the current O(n). Worth considering for the
+        expected payload size?
+
+  - rule_id: vague_finding_without_evidence
+    tier: serious
+    description: |
+      "This is bad" / "this won't scale" / "this isn't idiomatic" without quoted code
+      or specific reasoning is unactionable. The author can't fix what they can't see.
+    trigger:
+      check: finding_lacks_quoted_code_or_specific_reason
+    auto_fix:
+      action: request_evidence_from_reviewer
+    example:
+      bad: |
+        Line 45: This pattern won't scale.
+      good: |
+        Line 45: The `forEach` here makes a sync DB call per iteration. With 10k+ users
+        this becomes 10k+ round-trips. Consider batching with `IN` clause:
+        `db.query('SELECT * FROM users WHERE id IN (?)', [ids])`
+
+  - rule_id: missing_severity_calibration
+    tier: serious
+    description: |
+      Marking style preferences as BLOCKING burns out authors and trains them to ignore
+      severity labels. Reserve BLOCKING for: security issues, correctness bugs, broken
+      production paths. Use NEEDS_DISCUSSION for style and design questions.
+    trigger:
+      check: blocking_label_on_style_or_taste_finding
+    auto_fix:
+      action: downgrade_to_needs_discussion
+    example:
+      bad: |
+        BLOCKING: Use `interface` instead of `type` here.
+      good: |
+        NEEDS_DISCUSSION: Team conventions prefer `interface` for object shapes (per
+        team-conventions.md §3). Not blocking, but if you're already touching this file
+        worth aligning.
+
+  - rule_id: nitpick_storm
+    tier: general
+    description: |
+      More than 5 general/style findings in a single review buries any serious findings.
+      Authors stop reading at finding #6. Pick the top 2-3 stylistic issues, defer the rest.
+    trigger:
+      check: general_finding_count_greater_than_5
+    auto_fix:
+      action: consolidate_or_drop_low_value_findings
+    example:
+      bad: |
+        (15 separate style nits about spacing, comments, variable names)
+      good: |
+        (Top 2 style points consolidated into one finding, rest dropped with note:
+        "Minor style nits not worth blocking — running prettier would catch these.")
+
+  - rule_id: missing_action_clarity
+    tier: serious
+    description: |
+      "Consider refactoring this" without specifying *how* leaves the author guessing.
+      Either propose a concrete change or frame it as a question.
+    trigger:
+      patterns:
+        - "consider refactoring"
+        - "think about restructuring"
+        - "maybe rethink"
+        - "could be better"
+    auto_fix:
+      action: add_specific_proposal_or_reframe_as_question
+    example:
+      bad: |
+        Consider refactoring this function.
+      good: |
+        Could we extract the validation (lines 23-31) into a separate `validateRequest()`?
+        Would make the main function easier to scan and let us test validation in isolation.
+
+  - rule_id: passive_aggressive_questioning
+    tier: serious
+    description: |
+      "Did you mean to do this?" / "Are you sure about this?" / "Have you considered the obvious thing?"
+      reads as sarcasm even when meant sincerely. Ask the question without the loaded framing.
+    trigger:
+      patterns:
+        - "did you mean to"
+        - "are you sure"
+        - "have you considered the obvious"
+        - "I assume there's a reason"
+    auto_fix:
+      action: rephrase_as_neutral_question
+    example:
+      bad: |
+        Did you mean to remove the null check here?
+      good: |
+        I see the null check on line 12 was removed — what guarantees the value is non-null
+        at this point? (If it's via TypeScript's strict mode, ignore me.)
+
+  - rule_id: praise_without_specificity
+    tier: general
+    description: |
+      "Great work!" / "Looks good!" feels nice but adds nothing.
+      If you want to praise, name the specific decision.
+    trigger:
+      patterns:
+        - "great work"
+        - "looks good to me"
+        - "LGTM" # without specifics
+        - "nice job"
+    auto_fix:
+      action: add_specific_praise_or_remove
+    example:
+      bad: |
+        Great work overall!
+      good: |
+        Nice call extracting the cache logic into its own module — makes the change much
+        easier to reason about than I expected.
+
+  - rule_id: ungrounded_personal_preference
+    tier: general
+    description: |
+      "I would do this differently" without team-conventions backing or measurable benefit
+      is just personal preference asserted as expertise. Acceptable, but mark it as such.
+    trigger:
+      patterns_without_team_convention_reference:
+        - "I would"
+        - "I prefer"
+        - "In my experience"
+    auto_fix:
+      action: prefix_with_preference_disclaimer
+    example:
+      bad: |
+        I would name this `getUserById` instead.
+      good: |
+        Personal preference: `getUserById` reads cleaner than `fetchUser` because we have
+        `getOrderById` and `getProductById` elsewhere — feel free to ignore if the
+        inconsistency doesn't bother you.
+
+# How the foreman uses this file:
+#
+# 1. Phase 4 critic subagent reads this in its hardcoded read list
+# 2. Critic scans the review draft for each rule's trigger
+# 3. For each hit, critic reports rule_id + tier + location
+# 4. Phase 5 foreman:
+#    - tier=general/serious with auto_fix.action → apply via Edit tool
+#    - tier=fatal → require rewrite, may consult example.good for inspiration
+#    - tier=escalate → write to Phase 8 report
+#
+# Note: this file does NOT govern WHAT the review finds (bugs vs. non-bugs). That's
+# technical-rules.yaml's job. This file governs HOW the review presents its findings.

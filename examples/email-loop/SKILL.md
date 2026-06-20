@@ -12,7 +12,7 @@ user_invocable: true
 > **This is an example skill that demonstrates the loop-foreman pattern.**
 > It's intentionally simple — three stages and one critic — so the pattern is easy to read.
 >
-> Read this alongside `loop-foreman/SKILL.md` to see how the scaffold gets filled in.
+> Read this alongside `../../skills/loop-foreman/SKILL.md` to see how the scaffold gets filled in.
 
 ## What this loop does
 
@@ -55,7 +55,7 @@ The foreman takes over. Expect a final report in 3-5 minutes.
 
 ## Phase-by-phase walk-through
 
-This skill follows the templates in `loop-foreman/references/phase-templates.md` exactly, with the following placeholders filled in:
+This skill follows the templates in `../../skills/loop-foreman/references/phase-templates.md` exactly, with the following placeholders filled in:
 
 - `[MAKER_1]` = generate 3 draft emails (different tones)
 - `[MAKER_2]` = generate 2 tone variants of the locked draft
@@ -85,7 +85,7 @@ Save to `out/drafts/[recipient]-v{1,2,3}.md` using the Write tool.
 
 ### Phase 1.5 · Taste vote
 
-> Read the full pattern at `loop-foreman/references/taste-subagent.md` before spawning. The summary below specializes the pattern for email-loop.
+> Read the full pattern at `../../skills/loop-foreman/references/taste-subagent.md` before spawning. The summary below specializes the pattern for email-loop.
 
 Spawn 3 fresh `general-purpose` subagents in parallel using the Agent tool. Each subagent receives this hardcoded prompt:
 
@@ -185,7 +185,7 @@ Verdict: APPROVE | APPROVE_WITH_NOTES | REJECT_LIGHT | REJECT | ESCALATE_HUMAN
 
 ### Phase 5 · Routing
 
-Per `loop-foreman/references/phase-templates.md` Phase 5 routing matrix.
+Per `../../skills/loop-foreman/references/phase-templates.md` Phase 5 routing matrix.
 
 For each finding:
 - **A bucket** (gate file has answer) → foreman uses Edit tool to apply the rule's `auto_fix` action, citing the rule's `example.good` field as the precedent
@@ -322,7 +322,7 @@ Scale this up to 4-5 maker stages + 1 critic + 1 polisher for richer domains (ar
 
 To add a "main body" stage for longer-form content:
 
-1. Add Phase 3 from `loop-foreman/references/phase-templates.md` (conservative + sharp dual version)
+1. Add Phase 3 from `../../skills/loop-foreman/references/phase-templates.md` (conservative + sharp dual version)
 2. Add a Phase 3 cross-review (2 fresh subagents reviewing each other's version)
 3. Add Phase 3 step-5 taste vote (3 subagents on synthesis vs conservative vs sharp)
 
@@ -332,4 +332,4 @@ To add a "polish" stage:
 2. Add Phase 3.5 with the polisher skill name
 3. Update the foreman to invoke it via Skill tool after Phase 3 and before Phase 4 critic
 
-The full template is in `loop-foreman/references/phase-templates.md`.
+The full template is in `../../skills/loop-foreman/references/phase-templates.md`.
